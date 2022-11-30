@@ -501,6 +501,19 @@ func (h *Handler) handleClientAuthWithSelf(w http.ResponseWriter, r *http.Reques
 
 	playerToken := r.URL.Query().Get("playerToken")
 
+	if uid == 0 && playerToken == "" {
+		obj := map[string]any{
+			"success":        true,
+			"id":             "0",
+			"persistentData": marshalJSONBytesAsArray(pdata.DefaultPdata),
+			"authToken":      "anonymous",
+		}
+
+		h.m().client_authwithself_requests_total.success_anonymous.Inc()
+		respJSON(w, r, http.StatusOK, obj)
+		return
+	}
+
 	acct, err := h.AccountStorage.GetAccount(uid)
 	if err != nil {
 		hlog.FromRequest(r).Error().

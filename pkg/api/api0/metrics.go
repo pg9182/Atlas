@@ -96,6 +96,7 @@ type apiMetrics struct {
 	client_authwithserver_gameserverauth_duration_seconds *metrics.Histogram
 	client_authwithself_requests_total                    struct {
 		success                    *metrics.Counter
+		success_anonymous          *metrics.Counter
 		reject_bad_request         *metrics.Counter
 		reject_versiongate         *metrics.Counter
 		reject_player_not_found    *metrics.Counter
@@ -260,6 +261,7 @@ func (h *Handler) m() *apiMetrics {
 		mo.client_authwithserver_requests_total.http_method_not_allowed = mo.set.NewCounter(`atlas_api0_client_authwithserver_requests_total{result="http_method_not_allowed"}`)
 		mo.client_authwithserver_gameserverauth_duration_seconds = mo.set.NewHistogram(`atlas_api0_client_authwithserver_gameserverauth_duration_seconds`)
 		mo.client_authwithself_requests_total.success = mo.set.NewCounter(`atlas_api0_client_authwithself_requests_total{result="success"}`)
+		mo.client_authwithself_requests_total.success_anonymous = mo.set.NewCounter(`atlas_api0_client_authwithself_requests_total{result="success_anonymous"}`)
 		mo.client_authwithself_requests_total.reject_bad_request = mo.set.NewCounter(`atlas_api0_client_authwithself_requests_total{result="reject_bad_request"}`)
 		mo.client_authwithself_requests_total.reject_versiongate = mo.set.NewCounter(`atlas_api0_client_authwithself_requests_total{result="reject_versiongate"}`)
 		mo.client_authwithself_requests_total.reject_player_not_found = mo.set.NewCounter(`atlas_api0_client_authwithself_requests_total{result="reject_player_not_found"}`)
