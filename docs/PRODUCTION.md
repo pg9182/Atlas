@@ -4,6 +4,17 @@ This document describes the recommended setup for an non-containerized Atlas ser
 
 ## System requirements
 
+### Hardware
+
+These requirements should easily handle up to ~2 million players (~10,000 per hour), plus a few thousand extra server list requests per second.
+
+- **CPU**: 1 core minimum, but more are always better. Not usually a bottleneck, though.
+- **Memory:** 1GB minimum, 2GB recommended. Generally sits at around 500-800 MB under normal load, but can be more in certain situations, and it's good to have free memory for the disk cache.
+- **Disk:** About 1.7 kB/player for pdata and account storage, plus ~100-200 MB/day for zstd-compressed logs, and 2-3GB of scratch space. A local SSD is highly recommended, especially if you have less memory.
+- **Network:** At least 25-50 Mbit symmetrical (won't be saturated constantly, but needed to handle bursts when gameservers end matches and send pdata). TX is generally slightly higher than RX.
+
+### Dependencies
+
 | Dependency | Version | Notes |
 | --- | --- | --- |
 | go | 1.19+ | |
