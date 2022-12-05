@@ -82,21 +82,22 @@ type Handler struct {
 	// AllowGameServerIPv6 controls whether to allow game servers to use IPv6.
 	AllowGameServerIPv6 bool
 
-	// LookupIP looks up an IP2Location record for an IP. If not provided,
-	// server regions and geo metrics are disabled. If it doesn't include latlon
-	// info, geo metrics will be disabled too.
-	LookupIP func(netip.Addr) (ip2x.Record, error)
+	// IP2Location gets an IP2Location database. If not provided or it returns
+	// nil, server regions and geo metrics are disabled. If it doesn't include
+	// latlon info, geo metrics will be disabled too.
+	IP2Location func() *ip2x.DB
 
-	// GetRegion gets the region name from an IP2Location record. If not
-	// provided, server regions are disabled.
+	// RegionMap returns a function which gets the region name from an
+	// IP2Location record. If not provided or it returns nil, server regions are
+	// disabled.
 	//
 	// Errors should only be returned for unexpected situations, and a
 	// best-effort region should still be returned if applicable (it will still
 	// be used on error if non-empty).
 	//
-	// Note that it is valid to return an
-	// empty region and no error if no region is to be assigned.
-	GetRegion func(netip.Addr, ip2x.Record) (string, error)
+	// Note that it is valid to return an empty region and no error if no region
+	// is to be assigned.
+	RegionMap func() func(netip.Addr, ip2x.Record) (string, error)
 
 	metricsInit sync.Once
 	metricsObj  apiMetrics
@@ -221,7 +222,15 @@ func (h *Handler) geoCounter2(r *http.Request, ctr *metricsx.GeoCounter2) {
 		return
 	}
 
-	c, err := h.LookupIP(a.Addr())
+	var db *ip2x.DB
+	if fn := h.IP2Location; fn != nil {
+		db = fn()
+	}
+	if db == nil {
+		return
+	}
+
+	c, err := db.Lookup(a.Addr())
 	if err != nil {
 		return
 	}

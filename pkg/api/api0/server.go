@@ -160,8 +160,16 @@ func (h *Handler) handleServerUpsert(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if canCreate || canUpdate {
-		if h.LookupIP != nil && h.GetRegion != nil {
-			if rec, err := h.LookupIP(raddr.Addr()); err == nil {
+		var db *ip2x.DB
+		if fn := h.IP2Location; fn != nil {
+			db = fn()
+		}
+		var rm func(netip.Addr, ip2x.Record) (string, error)
+		if fn := h.RegionMap; fn != nil {
+			rm = fn()
+		}
+		if db != nil && rm != nil {
+			if rec, err := db.Lookup(raddr.Addr()); err == nil {
 				var lat, lon float64
 				if v, _ := rec.GetFloat32(ip2x.Latitude); v != 0 {
 					lat = float64(v)
@@ -178,7 +186,7 @@ func (h *Handler) handleServerUpsert(w http.ResponseWriter, r *http.Request) {
 					u.Longitude = &lon
 				}
 
-				region, err := h.GetRegion(raddr.Addr(), rec)
+				region, err := rm(raddr.Addr(), rec)
 				if err == nil || region != "" { // if an error occurs, we may still have a best-effort region
 					if canCreate {
 						s.Region = region
