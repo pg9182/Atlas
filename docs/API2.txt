@@ -1,0 +1,139 @@
+error:
+    auth_missing 401 - must provide a session token
+    auth_invalid 403 - session does not exist or is no longer valid, must restart client
+
+    auth_player_missing   401 - session token has never verified the player... do that and try again
+    auth_player_expired   401 - get a new origin token to re-auth with and try again
+    auth_player_destroyed 403 - fatal, another session logged in as this player
+
+    auth_server_missing   401 - session token has never verified the server... do that and try again
+    auth_server_expired   401 - reverify as the server and try again
+    auth_server_destroyed 403 - fatal, another session verified a server on this ip/port combination
+
+    pdata_locked 401 - not currently holding the pdata write lock, log an error and ignore
+
+    server_not_found 404 - no such server id (if attempting to update, register again)
+
+    bad_request *** - client sent an invalid request, this is a bug in the client
+    error       *** - generic error, client should log and continue if possible
+    fatal       *** - fatal error, client should not try again, and exit if it required that call to succeed
+
+POST /auth
+    get a new session token and udp signing key (call this once on startup)
+
+POST /auth/player?uid=UID (body: method=origin&token=...)
+    (re)verifies the player for the current session
+
+POST /auth/server?ip=self&port=
+    (re)verifies the server for the current session
+
+GET /pdata/{uid}?format=raw|json
+    gets the pdata or raw pdata (depending on the format url param, or the Accept header if url param is not provided)
+    if a lock token is provided, it will return an error if the token is not valid (this will help avoid bugs in the client implementation)
+
+PUT /pdata/{uid}?keep_lock=1
+    writes raw pdata and clears the write lock (unless keep_lock=1)
+    requires player and/or server auth
+    requires pdata write lock token
+
+DELETE /pdata/{uid}
+    resets pdata and clears the write lock
+    requires player auth
+
+GET /pdata/{uid}/lock
+    find out who is locking the pdata
+    requires player auth
+
+POST /pdata/{uid}/lock?timeout=5s
+    waits for the previous lock to be cleared (up to the specified timeout or 5s), then returns a new lock token
+    if a token is provided and it is the current lock token, returns a new lock token instantly
+
+DELETE /pdata/{uid}/lock
+    clears the write lock
+    requires player auth OR pdata write lock token
+
+GET /mainmenupromos
+    returns main menu promos
+
+GET /server
+    gets the server list
+
+POST /server?TODO
+    allocates and returns a new server id
+    requires server auth
+
+GET /server/{id}
+    gets more detailed information about a single server
+
+PATCH /server/{id}?TODO
+    updates server metadata, heartbeat
+
+DELETE /server/{id}
+    immediately removes the server
+
+POST /server/{id}/connect?password=
+    connects to a server, optionally providing password=HMAC-SHA256(nonce, actual_password), and returning the result from the server
+    if a pdata lock token is provided, pdata is read/write, else pdata is read-only
+    requires player auth
+
+POST /server/{id}/connect/{token}?result=ok|reject|password_required&data=
+    responds to a server connection token, optionally rejecting it with a message, or returning a nonce if a password is required
+    if result is ok, a new pdata lock token is included in the response
+    requires server auth
+
+---
+
+start the game
+    POST /auth
+    POST /auth/player
+    GET /mainmenupromos
+open the lobby
+    POST /pdata/{uid}/lock?timeout=5s
+    GET /pdata/{uid}
+    GET /server
+connect to a password-protected server
+    POST /server/{id}/connect
+    POST /server/{id}/connect?password=...
+back to "open the lobby"...
+
+---
+
+start the game
+    POST /auth
+    POST /auth/player
+    GET /mainmenupromos
+open the lobby
+    POST /pdata/{uid}/lock?timeout=5s
+    GET /pdata/{uid}
+    GET /server
+start a private match
+    loop (until match ended)
+        POST /auth/server
+        loop (while server auth valid)
+            POST /server (if don't already have a valid server id)
+            PATCH /server/{id}
+    DELETE /server/{id}
+back to "open the lobby"...
+
+---
+
+start the dedicated server
+    POST /auth
+    POST /auth/server
+    loop (until server quit)
+        POST /auth/server
+        loop (while server auth valid)
+            POST /server (if don't already have a valid server id)
+            PATCH /server/{id}
+    DELETE /server/{id}
+
+---
+
+server udp packet handling
+    wait for verify udp packet
+        POST /auth/server with verification token
+    wait for connect udp packet
+        check password, banlist, POST /server/{id}/connect
+        if success
+            GET /pdata/{uid}
+            when user quits, PUT /pdata/{uid}
